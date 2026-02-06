@@ -95,33 +95,6 @@ locals {
     #cloud-config
     
     write_files:
-    # Docker credential helper config for Artifact Registry auth
-    - path: /home/chronos/.docker/config.json
-      permissions: '0644'
-      content: |
-        {
-          "credHelpers": {
-            "gcr.io": "gcr",
-            "us.gcr.io": "gcr",
-            "eu.gcr.io": "gcr",
-            "asia.gcr.io": "gcr",
-            "asia-northeast3-docker.pkg.dev": "gcr",
-            "asia-docker.pkg.dev": "gcr"
-          }
-        }
-    - path: /root/.docker/config.json
-      permissions: '0644'
-      content: |
-        {
-          "credHelpers": {
-            "gcr.io": "gcr",
-            "us.gcr.io": "gcr",
-            "eu.gcr.io": "gcr",
-            "asia.gcr.io": "gcr",
-            "asia-northeast3-docker.pkg.dev": "gcr",
-            "asia-docker.pkg.dev": "gcr"
-          }
-        }
     - path: /etc/systemd/system/connectable-api.service
       permissions: '0644'
       content: |
@@ -134,18 +107,16 @@ locals {
         Type=simple
         Restart=always
         RestartSec=10
-        ExecStartPre=/usr/bin/docker pull ${var.container_image}
-        ExecStart=/usr/bin/docker run --rm --name connectable-api \
-          -p 8080:8080 \
-          ${local.env_flags} \
-          ${var.container_image}
+        Environment="DOCKER_CONFIG=/home/chronos/.docker"
+        ExecStartPre=/bin/bash -c 'mkdir -p /home/chronos/.docker && TOKEN=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | grep -o "access_token\":\"[^\"]*" | cut -d\" -f3) && echo $TOKEN | docker login -u oauth2accesstoken --password-stdin asia-northeast3-docker.pkg.dev && docker pull ${var.container_image}'
+        ExecStart=/bin/bash -c '/usr/bin/docker run --rm --name connectable-api -p 8080:8080 ${local.env_flags} ${var.container_image}'
         ExecStop=/usr/bin/docker stop connectable-api
         
         [Install]
         WantedBy=multi-user.target
     
     runcmd:
-    - mkdir -p /home/chronos/.docker /root/.docker
+    - mkdir -p /home/chronos/.docker
     - systemctl daemon-reload
     - systemctl enable connectable-api.service
     - systemctl start connectable-api.service

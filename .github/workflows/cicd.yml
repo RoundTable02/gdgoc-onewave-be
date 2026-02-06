@@ -128,17 +128,19 @@ jobs:
           docker push ${{ steps.meta.outputs.tags }}
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.meta.outputs.tags }} | cut -d'@' -f2)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
-
-      - name: Deploy to Compute Engine
-        if: github.ref_name == 'main'
-        run: |
-          gcloud compute ssh ${{ env.SERVICE_NAME }} \
-            --zone=${{ env.GCP_ZONE }} \
-            --command="sudo systemctl restart connectable-api && sleep 5 && sudo systemctl status connectable-api" \
-            || {
-              echo "=== Deploy failed. Fetching logs ==="
-              gcloud compute ssh ${{ env.SERVICE_NAME }} \
-                --zone=${{ env.GCP_ZONE }} \
-                --command="sudo journalctl -u connectable-api --no-pager -n 50"
-              exit 1
-            }
+          echo "## 🚀 Docker Image Pushed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ steps.meta.outputs.tags }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Manual Deploy Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# SSH into VM" >> $GITHUB_STEP_SUMMARY
+          echo "gcloud compute ssh connectable-api --zone=asia-northeast3-a" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Pull and restart" >> $GITHUB_STEP_SUMMARY
+          echo "export DOCKER_CONFIG=/home/chronos/.docker" >> $GITHUB_STEP_SUMMARY
+          echo "TOKEN=\\\$(curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | grep -o '\"access_token\":\"[^\"]*' | cut -d'\"' -f4)" >> $GITHUB_STEP_SUMMARY
+          echo "echo \\\$TOKEN | sudo DOCKER_CONFIG=\\\$DOCKER_CONFIG docker login -u oauth2accesstoken --password-stdin asia-northeast3-docker.pkg.dev" >> $GITHUB_STEP_SUMMARY
+          echo "sudo DOCKER_CONFIG=\\\$DOCKER_CONFIG docker pull ${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "sudo systemctl restart connectable-api" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
