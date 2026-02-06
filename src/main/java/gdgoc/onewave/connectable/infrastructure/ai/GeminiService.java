@@ -72,28 +72,51 @@ public class GeminiService {
 
     private String buildPrompt(List<String> subTasks, String assignmentContent) {
         StringBuilder prompt = new StringBuilder();
+
+        // Introduction and assignment description
         prompt.append("You are an expert Playwright test script generator.\n\n");
         prompt.append("## Assignment Description\n");
         prompt.append(assignmentContent).append("\n\n");
-        prompt.append("## Grading Criteria (Sub-tasks)\n");
 
+        // Sub-tasks enumeration
+        prompt.append("## Grading Criteria (Sub-tasks)\n");
         for (int i = 0; i < subTasks.size(); i++) {
             prompt.append(i + 1).append(". ").append(subTasks.get(i)).append("\n");
         }
 
+        // Worker environment constraints
+        prompt.append("\n## CRITICAL: Worker Environment Constraints\n");
+        prompt.append("The generated script will run in a worker environment with these constraints:\n");
+        prompt.append("- The page is ALREADY LOADED at the target URL before each test runs\n");
+        prompt.append("- The worker provides test, expect, and page automatically\n");
+        prompt.append("- ONLY individual test() functions are executed (no describe blocks, no beforeEach hooks)\n");
+        prompt.append("- Each test runs independently with a fresh page context\n");
+
+        // Requirements section
         prompt.append("\n## Requirements\n");
         prompt.append("- Generate a TypeScript + Playwright test script\n");
-        prompt.append("- Create a separate test case for each sub-task\n");
-        prompt.append("- Group all tests using test.describe()\n");
-        prompt.append("- Each test should verify the corresponding sub-task requirement\n");
-        prompt.append("- The script should be ready to run with Playwright\n");
-        prompt.append("- Use appropriate selectors and assertions\n");
-        prompt.append("- Include necessary imports at the top\n\n");
-        prompt.append("## CRITICAL OUTPUT FORMAT REQUIREMENTS\n");
+        prompt.append("- Create a separate test() function for each sub-task\n");
+        prompt.append("- MANDATORY: Each test MUST have a comment in the format: // Task: [exact sub-task text]\n");
+        prompt.append("  - This comment must appear immediately before the corresponding test() function\n");
+        prompt.append("  - Use the EXACT sub-task text from the \"Grading Criteria\" section\n");
+        prompt.append("  - Example:\n");
+        prompt.append("    // Task: Sub-task 1: Verify login form elements\n");
+        prompt.append("    test('Sub-task 1: Verify login form elements', async ({ page }) => { ... });\n");
+        prompt.append("- DO NOT include any import statements (test, expect, page are auto-provided)\n");
+        prompt.append("- DO NOT use test.describe() blocks (they are ignored)\n");
+        prompt.append("- DO NOT use test.beforeEach() or any hooks (each test runs independently)\n");
+        prompt.append("- DO NOT call page.goto() (the page is already at the target URL)\n");
+        prompt.append("- Use appropriate selectors (prefer data-testid, id, or specific CSS selectors)\n");
+        prompt.append("- Use Playwright assertions (expect(page).toHaveTitle, expect(locator).toBeVisible, etc.)\n");
+        prompt.append("- Each test should be atomic and verify the corresponding sub-task requirement\n");
+
+        // Output format requirements
+        prompt.append("\n## CRITICAL OUTPUT FORMAT REQUIREMENTS\n");
         prompt.append("- Do NOT use markdown code blocks (no ```typescript or ``` markers)\n");
-        prompt.append("- Do NOT add any explanations, comments, or descriptions\n");
-        prompt.append("- Start DIRECTLY with the import statement\n");
+        prompt.append("- Do NOT add any explanations, comments, or descriptions outside the script\n");
+        prompt.append("- Start DIRECTLY with the first // Task: comment\n");
         prompt.append("- Output ONLY the raw TypeScript code that can be saved directly to a .ts file\n\n");
+
         prompt.append("Generate the complete Playwright test script now:");
 
         return prompt.toString();

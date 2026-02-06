@@ -64,6 +64,7 @@ public class AssignmentService {
                 assignment.getTitle(),
                 assignment.getContent(),
                 assignment.getSubTasks(),
+                assignment.getAiScript(),
                 assignment.getCreatedAt()
         );
     }
@@ -101,6 +102,7 @@ public class AssignmentService {
                 assignment.getTitle(),
                 assignment.getContent(),
                 assignment.getSubTasks(),
+                assignment.getAiScript(),
                 assignment.getCreatedAt()
         );
     }

@@ -15,6 +15,8 @@ public record AssignmentResponse(
     String content,
     @Schema(description = "Sub tasks")
     List<String> subTasks,
+    @Schema(description = "AI-generated Playwright script")
+    String aiScript,
     @Schema(description = "Created at")
     LocalDateTime createdAt
 ) {}
