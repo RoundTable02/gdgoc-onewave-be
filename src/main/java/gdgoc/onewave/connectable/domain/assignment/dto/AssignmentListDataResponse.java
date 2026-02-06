@@ -6,5 +6,17 @@ import java.util.List;
 @Schema(description = "Assignment List Response")
 public record AssignmentListDataResponse(
     @Schema(description = "List of assignments")
-    List<AssignmentListResponse> data
+    List<AssignmentListResponse> content,
+
+    @Schema(description = "Current page number")
+    int page,
+
+    @Schema(description = "Page size")
+    int size,
+
+    @Schema(description = "Total number of elements")
+    long totalElements,
+
+    @Schema(description = "Total number of pages")
+    int totalPages
 ) {}

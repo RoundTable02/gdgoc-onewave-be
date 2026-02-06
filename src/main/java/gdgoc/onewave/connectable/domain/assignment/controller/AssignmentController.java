@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "Assignment", description = "Assignment Management API")
@@ -67,7 +66,7 @@ public class AssignmentController {
             @Parameter(description = "Page number (starts from 0)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size
     ) {
-        return new AssignmentListDataResponse(List.of());
+        return assignmentService.getAssignments(page, size);
     }
 
     @Operation(summary = "Get Assignment Detail", description = "Gets details of a specific assignment.")
@@ -86,6 +85,6 @@ public class AssignmentController {
     @GetMapping("/{id}")
     public ApiResponse<AssignmentResponse> getAssignment(
             @Parameter(description = "Assignment ID", required = true) @PathVariable UUID id) {
-        return ApiResponse.success(null);
+        return ApiResponse.success(assignmentService.getAssignment(id));
     }
 }
