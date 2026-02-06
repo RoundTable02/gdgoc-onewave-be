@@ -1,5 +1,6 @@
 package gdgoc.onewave.connectable.domain.submission.controller;
 
+import gdgoc.onewave.connectable.domain.submission.dto.SubmissionRequest;
 import gdgoc.onewave.connectable.domain.submission.dto.SubmissionResponse;
 import gdgoc.onewave.connectable.domain.submission.service.SubmissionService;
 import gdgoc.onewave.connectable.global.response.ApiResponse;
@@ -9,10 +10,9 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -26,7 +26,7 @@ public class SubmissionController {
 
     @Operation(
         summary = "Submit and Grade",
-        description = "Submits a Zip file, uploads to GCS, and performs immediate grading."
+        description = "Submits a deployed project URL and performs immediate grading."
     )
     @io.swagger.v3.oas.annotations.Parameters({
         @Parameter(
@@ -45,7 +45,7 @@ public class SubmissionController {
         ),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "400",
-            description = "Invalid file type or size",
+            description = "Invalid URL format or missing required fields",
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         ),
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -59,12 +59,11 @@ public class SubmissionController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    @PostMapping(value = "/{id}/submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping("/{id}/submissions")
     public ApiResponse<SubmissionResponse> submitAssignment(
             @PathVariable UUID id,
-            @Parameter(description = "Client-generated user UUID (stored in localStorage)") @RequestPart("userId") String userId,
-            @Parameter(description = "Zip file to submit (max 50MB)") @RequestPart("file") MultipartFile file
+            @Valid @RequestBody SubmissionRequest request
     ) {
-        return ApiResponse.success(submissionService.submit(id, userId, file));
+        return ApiResponse.success(submissionService.submit(id, request));
     }
 }

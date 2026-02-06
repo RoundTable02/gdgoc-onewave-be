@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+@Deprecated
 @Slf4j
 @Service
 @RequiredArgsConstructor

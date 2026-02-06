@@ -7,16 +7,15 @@ import gdgoc.onewave.connectable.domain.entity.Submission;
 import gdgoc.onewave.connectable.domain.entity.SubmissionStatus;
 import gdgoc.onewave.connectable.domain.grading.dto.GradingResultResponse;
 import gdgoc.onewave.connectable.domain.grading.repository.GradingResultRepository;
+import gdgoc.onewave.connectable.domain.submission.dto.SubmissionRequest;
 import gdgoc.onewave.connectable.domain.submission.dto.SubmissionResponse;
 import gdgoc.onewave.connectable.domain.submission.repository.SubmissionRepository;
 import gdgoc.onewave.connectable.global.exception.BusinessException;
 import gdgoc.onewave.connectable.global.exception.ErrorCode;
-import gdgoc.onewave.connectable.infrastructure.storage.GcsStorageService;
 import gdgoc.onewave.connectable.infrastructure.worker.GradingWorkerClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -28,57 +27,47 @@ public class SubmissionService {
 
     private final AssignmentRepository assignmentRepository;
     private final SubmissionRepository submissionRepository;
-    private final GcsStorageService gcsStorageService;
     private final GradingWorkerClient gradingWorkerClient;
     private final GradingResultRepository gradingResultRepository;
 
     @Transactional
-    public SubmissionResponse submit(UUID assignmentId, String userId, MultipartFile file) {
-        // 1. Validate file type
-        String originalFilename = file.getOriginalFilename();
-        if (originalFilename == null || !originalFilename.toLowerCase().endsWith(".zip")) {
-            throw new BusinessException(ErrorCode.INVALID_FILE_TYPE);
-        }
-
-        // 2. Find assignment
+    public SubmissionResponse submit(UUID assignmentId, SubmissionRequest request) {
+        // 1. Find assignment
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ASSIGNMENT_NOT_FOUND));
 
-        // 3. Create submission temporarily (status=FAILED initially)
+        // 2. Create submission temporarily (status=FAILED initially)
         Submission submission = Submission.builder()
-                .userId(UUID.fromString(userId))
+                .userId(UUID.fromString(request.userId()))
                 .assignment(assignment)
-                .fileUrl("")
+                .fileUrl(request.url())
                 .status(SubmissionStatus.FAILED)
                 .build();
         submission = submissionRepository.save(submission);
 
-        // 4. Upload zip to GCS
-        String fileUrl = gcsStorageService.uploadAndExtractZip(file, submission.getId());
-
-        // 5. Call grading worker
+        // 3. Call grading worker
         GradingWorkerClient.GradingRequest gradingRequest = new GradingWorkerClient.GradingRequest(
                 submission.getId(),
-                fileUrl,
+                request.url(),
                 assignment.getAiScript()
         );
         GradingWorkerClient.GradingResponse gradingResponse = gradingWorkerClient.grade(gradingRequest);
 
-        // 6. Determine status based on worker response
+        // 4. Determine status based on worker response
         SubmissionStatus finalStatus = gradingResponse.success() ? SubmissionStatus.COMPLETED : SubmissionStatus.FAILED;
 
-        // 7. Update submission with fileUrl and final status
+        // 5. Update submission with final status
         submission = Submission.builder()
                 .id(submission.getId())
                 .userId(submission.getUserId())
                 .assignment(assignment)
-                .fileUrl(fileUrl)
+                .fileUrl(request.url())
                 .status(finalStatus)
                 .createdAt(submission.getCreatedAt())
                 .build();
         Submission finalSubmission = submissionRepository.save(submission);
 
-        // 8. Create and save GradingResult entities
+        // 6. Create and save GradingResult entities
         List<GradingResult> gradingResults = gradingResponse.results().stream()
                 .map(item -> GradingResult.builder()
                         .submission(finalSubmission)
@@ -88,7 +77,7 @@ public class SubmissionService {
                 .collect(Collectors.toList());
         gradingResultRepository.saveAll(gradingResults);
 
-        // 9. Build response with grading results
+        // 7. Build response with grading results
         List<GradingResultResponse> gradingResultResponses = gradingResults.stream()
                 .map(gr -> new GradingResultResponse(gr.getTaskName(), gr.getIsPassed()))
                 .collect(Collectors.toList());

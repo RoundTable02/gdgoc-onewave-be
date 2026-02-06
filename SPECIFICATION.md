@@ -8,7 +8,7 @@
 
 ### 1.1 시스템 목적
 - **구인자**: 프론트엔드 구현 과제를 생성하고, AI가 생성한 Playwright 스크립트로 자동 채점
-- **구직자**: 과제 확인 후 빌드 파일(Zip) 제출, **즉시** 채점 결과 확인
+- **구직자**: 과제 확인 후 배포 URL 제출, **즉시** 채점 결과 확인
 
 ### 1.3 핵심 설계 결정
 - **동기식 채점**: 제출 API 호출 시 Cloud Run 워커 채점 완료까지 대기 후 결과 즉시 반환
@@ -45,8 +45,8 @@
 
 ### 1.3 제출 → 채점 Flow (동기식)
 ```
-1. 구직자가 Zip 파일 제출
-2. Spring Boot가 GCS에 파일 업로드 (정적 호스팅 URL 생성)
+1. 구직자가 배포된 프로젝트의 URL 제출
+2. Spring Boot가 URL 검증
 3. Cloud Run 워커에 채점 요청 (동기 호출 - 응답 대기)
 4. 워커가 Playwright로 테스트 실행
 5. 채점 결과를 워커가 직접 반환
@@ -527,16 +527,15 @@ Response:
 
 ### 6.2 Submission API
 
-#### 6.2.1 파일 제출 및 채점 (POST /api/assignments/{id}/submissions)
+#### 6.2.1 URL 제출 및 채점 (POST /api/assignments/{id}/submissions)
 ```yaml
 Request:
   Method: POST
   Path: /api/assignments/{id}/submissions
-  Content-Type: multipart/form-data
-  Headers:
-    X-User-Id: string (required)  # 클라이언트에서 생성한 사용자 UUID
+  Content-Type: application/json
   Body:
-    file: MultipartFile (required, .zip only, max 50MB)
+    userId: string (required)  # 클라이언트에서 생성한 사용자 UUID
+    url: string (required)     # 배포된 프로젝트 URL (http:// or https://)
 
 Response:
   200 OK:  # 동기식 - 채점 완료 후 즉시 반환
@@ -552,27 +551,26 @@ Response:
       passRate: string  # e.g., "80%"
 
   400 Bad Request:
-    code: "INVALID_FILE"
-    message: "Only .zip files are allowed"
+    code: "INVALID_INPUT"
+    message: "URL must start with http:// or https://"
 
   404 Not Found:
     code: "ASSIGNMENT_NOT_FOUND"
     message: "Assignment not found"
-    
+
   500 Internal Server Error:
     code: "GRADING_FAILED"
     message: "Grading process failed"
 ```
 
 **비즈니스 로직 (동기식):**
-1. 파일 유효성 검증 (.zip 확장자, 크기 제한)
-2. Zip 압축 해제
-3. GCS에 폴더 구조 그대로 업로드
-4. 정적 호스팅 URL 생성 (index.html 기준)
-5. **Cloud Run 워커에 채점 요청 (동기 - 응답 대기)**
-6. 워커로부터 채점 결과 수신
-7. Submission + GradingResult DB 저장
-8. **채점 결과 포함하여 200 OK 응답**
+1. URL 유효성 검증 (http/https 프로토콜)
+2. Assignment 존재 여부 확인
+3. Submission 엔티티 생성 (fileUrl에 사용자 URL 저장)
+4. **Cloud Run 워커에 채점 요청 (동기 - 응답 대기)**
+5. 워커로부터 채점 결과 수신
+6. Submission + GradingResult DB 저장
+7. **채점 결과 포함하여 200 OK 응답**
 
 **타임아웃 고려사항:**
 - Cloud Run 워커 호출 타임아웃: 60초

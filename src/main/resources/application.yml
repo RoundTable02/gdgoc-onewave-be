@@ -3,7 +3,7 @@ spring:
     name: connectable
   
   datasource:
-    url: jdbc:postgresql://${SUPABASE_HOST}:6543/${SUPABASE_DB}
+    url: jdbc:postgresql://${SUPABASE_HOST}:6543/${SUPABASE_DB}?prepareThreshold=0
     username: ${SUPABASE_USER}
     password: ${SUPABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
