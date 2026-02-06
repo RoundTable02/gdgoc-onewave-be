@@ -1,0 +1,72 @@
+# =============================================================================
+# Example Terraform Variables - Hackathon Edition
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Project Configuration
+# -----------------------------------------------------------------------------
+
+project_id = "your-gcp-project-id"
+region     = "asia-northeast3"
+zone       = "asia-northeast3-a"
+
+# -----------------------------------------------------------------------------
+# Compute Engine Configuration (Spring Boot API)
+# Budget: e2-medium = ~$0.82/day = ~$0.034/hour
+# -----------------------------------------------------------------------------
+
+instance_name   = "connectable-api"
+machine_type    = "e2-medium" # 2 vCPU, 4GB RAM
+container_image = "asia-northeast3-docker.pkg.dev/your-project/connectable/api:latest"
+
+# -----------------------------------------------------------------------------
+# Cloud Run Worker Configuration (NestJS Playwright)
+# Cost: ~$0-2/day depending on usage (scales to 0)
+# -----------------------------------------------------------------------------
+
+worker_image         = "asia-northeast3-docker.pkg.dev/your-project/connectable/worker:latest"
+worker_min_instances = 0 # Scale to 0 when idle (cost optimization)
+worker_max_instances = 5
+
+# -----------------------------------------------------------------------------
+# GCS Configuration
+# -----------------------------------------------------------------------------
+
+gcs_bucket_name        = "connectable-submissions-hackathon"
+gcs_storage_class      = "STANDARD"
+gcs_lifecycle_age_days = 7 # Delete after 7 days for hackathon
+
+# -----------------------------------------------------------------------------
+# Database Configuration (Supabase)
+# -----------------------------------------------------------------------------
+
+supabase_host     = "db.xxxxxxxxxxxxx.supabase.co"
+supabase_db       = "postgres"
+supabase_user     = "postgres"
+supabase_password = "your-supabase-password"
+
+# -----------------------------------------------------------------------------
+# External Services
+# -----------------------------------------------------------------------------
+
+gemini_api_key         = "your-gemini-api-key"
+gemini_model           = "gemini-1.5-pro"
+worker_timeout_seconds = 60
+
+# -----------------------------------------------------------------------------
+# CORS Configuration (open for hackathon)
+# -----------------------------------------------------------------------------
+
+cors_allowed_origins = ["*"]
+
+# -----------------------------------------------------------------------------
+# Resource Labels
+# -----------------------------------------------------------------------------
+
+labels = {
+  team  = "connectable"
+  event = "hackathon"
+}
