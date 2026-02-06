@@ -88,3 +88,7 @@ terraform/.terraformrc
 terraform/terraform.rc
 
 src/main/resources/application-dev.yml
+
+example.zip
+
+example
