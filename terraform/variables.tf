@@ -107,7 +107,7 @@ variable "gemini_api_key" {
 variable "gemini_model" {
   description = "Gemini model to use"
   type        = string
-  default     = "gemini-1.5-pro"
+  default     = "gemini-2.5-pro"
 }
 
 variable "worker_timeout_seconds" {

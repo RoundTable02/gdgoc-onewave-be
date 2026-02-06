@@ -1,5 +1,6 @@
 package gdgoc.onewave.connectable.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.handler.timeout.WriteTimeoutHandler;
@@ -14,6 +15,11 @@ import java.util.concurrent.TimeUnit;
 
 @Configuration
 public class WebClientConfig {
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        return new ObjectMapper();
+    }
 
     @Bean
     public WebClient webClient() {
