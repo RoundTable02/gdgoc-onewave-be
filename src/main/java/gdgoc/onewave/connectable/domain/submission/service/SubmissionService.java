@@ -49,7 +49,8 @@ public class SubmissionService {
         GradingWorkerClient.GradingRequest gradingRequest = new GradingWorkerClient.GradingRequest(
                 submission.getId(),
                 request.url(),
-                assignment.getAiScript()
+                assignment.getAiScript(),
+                assignment.getSubTasks()
         );
         GradingWorkerClient.GradingResponse gradingResponse = gradingWorkerClient.grade(gradingRequest);
 

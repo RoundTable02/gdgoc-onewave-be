@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,7 +32,8 @@ public class GradingWorkerClient {
     public record GradingRequest(
             UUID submissionId,
             String targetUrl,
-            String playwrightScript
+            String playwrightScript,
+            List<String> subTasks
     ) {}
 
     public record GradingResponse(
@@ -58,18 +60,20 @@ public class GradingWorkerClient {
             log.info("Timeout: {} seconds", timeoutSeconds);
 
             // Get the raw response body as String to log it
-            String rawResponseBody = webClient.post()
-                    .uri(endpoint)
-                    .header("Content-Type", "application/json")
-                    .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .timeout(Duration.ofSeconds(timeoutSeconds))
-                    .onErrorResume(e -> {
-                        log.error("Failed to call grading worker: {}", e.getMessage(), e);
-                        return Mono.error(new BusinessException(ErrorCode.GRADING_TRIGGER_FAILED));
-                    })
-                    .block();
+            String rawResponseBody;
+            try {
+                rawResponseBody = webClient.post()
+                        .uri(endpoint)
+                        .header("Content-Type", "application/json")
+                        .bodyValue(request)
+                        .retrieve()
+                        .bodyToMono(String.class)
+                        .timeout(Duration.ofSeconds(timeoutSeconds))
+                        .block();
+            } catch (Exception e) {
+                log.error("Network error during grading: {}", e.getMessage(), e);
+                return createFailureResponse(request, "Network error: " + e.getMessage());
+            }
 
             log.info("==== Raw Response Body ====");
             log.info("Response length: {} characters", rawResponseBody != null ? rawResponseBody.length() : 0);
@@ -77,8 +81,8 @@ public class GradingWorkerClient {
             log.info("===========================");
 
             if (rawResponseBody == null || rawResponseBody.trim().isEmpty()) {
-                log.error("Grading worker returned null or empty response");
-                throw new BusinessException(ErrorCode.GRADING_TRIGGER_FAILED);
+                log.error("Empty response from grading worker");
+                return createFailureResponse(request, "Empty response from grading worker");
             }
 
             // Parse the JSON response
@@ -86,8 +90,8 @@ public class GradingWorkerClient {
             try {
                 response = objectMapper.readValue(rawResponseBody, GradingResponse.class);
             } catch (Exception e) {
-                log.error("Failed to parse response as JSON: {}", e.getMessage(), e);
-                throw new BusinessException(ErrorCode.GRADING_TRIGGER_FAILED);
+                log.error("Failed to parse grading response: {}", e.getMessage(), e);
+                return createFailureResponse(request, "Invalid JSON response");
             }
 
             log.info("==== Grading Worker Response ====");
@@ -104,13 +108,55 @@ public class GradingWorkerClient {
             }
             log.info("================================");
 
+            // Check if results are null or empty - create failure response with task names
+            if (response.results() == null || response.results().isEmpty()) {
+                log.warn("Grading response has empty results, creating failure response");
+                String errorMsg = response.errorMessage() != null ? response.errorMessage() : "No grading results returned";
+                return createFailureResponse(request, errorMsg);
+            }
+
             return response;
 
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Unexpected error during grading worker call", e);
-            throw new BusinessException(ErrorCode.GRADING_TRIGGER_FAILED);
+            log.error("Unexpected error during grading", e);
+            return createFailureResponse(request, e.getMessage());
         }
+    }
+
+    /**
+     * Creates a fallback GradingResponse when grading fails.
+     * Uses the assignment's subTasks and marks all tasks as failed.
+     *
+     * @param request The original grading request
+     * @param errorMessage The error message describing what went wrong
+     * @return A GradingResponse with all tasks marked as failed
+     */
+    private GradingResponse createFailureResponse(GradingRequest request, String errorMessage) {
+        log.info("Creating failure response for submission {}", request.submissionId());
+
+        // Use subTasks from the assignment
+        List<String> taskNames = request.subTasks();
+
+        // If subTasks is null or empty, use a default task
+        if (taskNames == null || taskNames.isEmpty()) {
+            log.warn("No subTasks provided, using default task");
+            taskNames = List.of("Grading Evaluation");
+        }
+
+        // Create failed results for each task
+        List<GradingResultItem> failedResults = taskNames.stream()
+                .map(taskName -> new GradingResultItem(taskName, false))
+                .collect(Collectors.toList());
+
+        log.info("Created {} failed result(s)", failedResults.size());
+
+        return new GradingResponse(
+                request.submissionId(),
+                false,  // success = false
+                failedResults,
+                errorMessage != null ? errorMessage : "Grading failed due to unexpected error"
+        );
     }
 }
