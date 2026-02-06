@@ -95,6 +95,33 @@ locals {
     #cloud-config
     
     write_files:
+    # Docker credential helper config for Artifact Registry auth
+    - path: /home/chronos/.docker/config.json
+      permissions: '0644'
+      content: |
+        {
+          "credHelpers": {
+            "gcr.io": "gcr",
+            "us.gcr.io": "gcr",
+            "eu.gcr.io": "gcr",
+            "asia.gcr.io": "gcr",
+            "asia-northeast3-docker.pkg.dev": "gcr",
+            "asia-docker.pkg.dev": "gcr"
+          }
+        }
+    - path: /root/.docker/config.json
+      permissions: '0644'
+      content: |
+        {
+          "credHelpers": {
+            "gcr.io": "gcr",
+            "us.gcr.io": "gcr",
+            "eu.gcr.io": "gcr",
+            "asia.gcr.io": "gcr",
+            "asia-northeast3-docker.pkg.dev": "gcr",
+            "asia-docker.pkg.dev": "gcr"
+          }
+        }
     - path: /etc/systemd/system/connectable-api.service
       permissions: '0644'
       content: |
@@ -118,6 +145,7 @@ locals {
         WantedBy=multi-user.target
     
     runcmd:
+    - mkdir -p /home/chronos/.docker /root/.docker
     - systemctl daemon-reload
     - systemctl enable connectable-api.service
     - systemctl start connectable-api.service

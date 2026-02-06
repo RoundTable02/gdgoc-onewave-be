@@ -134,7 +134,7 @@ jobs:
         run: |
           gcloud compute ssh ${{ env.SERVICE_NAME }} \
             --zone=${{ env.GCP_ZONE }} \
-            --command="gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }} --quiet && sudo systemctl restart connectable-api && sudo systemctl status connectable-api" \
+            --command="sudo systemctl restart connectable-api && sleep 5 && sudo systemctl status connectable-api" \
             || {
               echo "=== Deploy failed. Fetching logs ==="
               gcloud compute ssh ${{ env.SERVICE_NAME }} \
