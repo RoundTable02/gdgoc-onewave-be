@@ -42,7 +42,7 @@ gcs:
 # Gemini API 설정
 gemini:
   api-key: ${GEMINI_API_KEY}
-  model: gemini-1.5-pro
+  model: gemini-2.5-pro
 
 # Cloud Run 워커 설정
 worker:

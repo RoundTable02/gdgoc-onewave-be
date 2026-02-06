@@ -24,6 +24,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AssignmentController {
 
+    private final gdgoc.onewave.connectable.domain.assignment.service.AssignmentService assignmentService;
+
     @Operation(
         summary = "Create Assignment",
         description = "Creates a new assignment and generates grading script via AI."
@@ -49,7 +51,7 @@ public class AssignmentController {
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<AssignmentResponse> createAssignment(
             @Valid @RequestBody AssignmentCreateRequest request) {
-        return ApiResponse.success(null);
+        return ApiResponse.success(assignmentService.create(request));
     }
 
     @Operation(summary = "Get Assignments", description = "Lists all assignments.")
