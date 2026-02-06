@@ -27,13 +27,6 @@ public class SubmissionController {
     )
     @io.swagger.v3.oas.annotations.Parameters({
         @Parameter(
-            name = "X-User-Id",
-            description = "Client-generated user UUID (stored in localStorage)",
-            in = ParameterIn.HEADER,
-            required = true,
-            schema = @Schema(type = "string", format = "uuid")
-        ),
-        @Parameter(
             name = "id",
             description = "Assignment ID",
             in = ParameterIn.PATH,
@@ -65,8 +58,8 @@ public class SubmissionController {
     })
     @PostMapping(value = "/{id}/submissions", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<SubmissionResponse> submitAssignment(
-            @RequestHeader("X-User-Id") UUID userId,
             @PathVariable UUID id,
+            @Parameter(description = "Client-generated user UUID (stored in localStorage)") @RequestPart("userId") String userId,
             @Parameter(description = "Zip file to submit (max 50MB)") @RequestPart("file") MultipartFile file,
             @Parameter(description = "Candidate Name") @RequestPart("candidateName") String candidateName
     ) {
