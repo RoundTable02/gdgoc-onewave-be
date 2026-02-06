@@ -80,21 +80,73 @@ variable "worker_url" {
 # -----------------------------------------------------------------------------
 # Container-Optimized OS VM
 # -----------------------------------------------------------------------------
+# IMPORTANT: Container-Optimized OS (COS) has specific constraints:
+# - No gcloud CLI available
+# - /root is read-only
+# - Most filesystems are noexec
+# - Must use /bin/bash to run scripts from /var/lib
+# - Must use curl + Secret Manager REST API for secrets
+# -----------------------------------------------------------------------------
 
-# Generate cloud-init config for container deployment
 locals {
-  # Build environment variable string for docker run
-  env_flags = join(" ", concat(
-    [for k, v in var.env_vars : "-e ${k}='${v}'"],
-    [for k, secret_name in var.secret_env_vars : "-e ${k}=$(gcloud secrets versions access latest --secret=connectable-${secret_name})"],
-    ["-e WORKER_URL='${var.worker_url}'"]
+  # Build environment variable flags for docker run (non-secret vars only)
+  env_flags_simple = join(" ", concat(
+    [for k, v in var.env_vars : "-e ${k}=\"${v}\""],
+    ["-e WORKER_URL=\"${var.worker_url}\""]
   ))
+
+  # Secret names for the start script to fetch
+  secret_names = join(" ", [for k, secret_name in var.secret_env_vars : "${k}:connectable-${secret_name}"])
 
   # Cloud-init config to run container on startup
   cloud_config = <<-EOF
     #cloud-config
     
     write_files:
+    # Script to pull Docker image with authentication
+    - path: /var/lib/pull-image.sh
+      permissions: '0644'
+      content: |
+        #!/bin/bash
+        set -e
+        mkdir -p /home/chronos/.docker
+        export DOCKER_CONFIG=/home/chronos/.docker
+        TOKEN=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+        echo $TOKEN | docker login -u oauth2accesstoken --password-stdin ${var.region}-docker.pkg.dev
+        docker pull ${var.container_image}
+    
+    # Script to start container with secrets from Secret Manager
+    - path: /var/lib/start-connectable.sh
+      permissions: '0644'
+      content: |
+        #!/bin/bash
+        set -e
+        
+        # Get access token for Secret Manager API
+        TOKEN=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | grep -o '"access_token":"[^"]*' | cut -d'"' -f4)
+        
+        # Function to fetch secret from Secret Manager REST API
+        get_secret() {
+          curl -s -H "Authorization: Bearer $TOKEN" \
+            "https://secretmanager.googleapis.com/v1/projects/${var.project_id}/secrets/$1/versions/latest:access" \
+            | grep -o '"data": *"[^"]*' | cut -d'"' -f4 | base64 -d
+        }
+        
+        # Fetch all secrets
+        %{for k, secret_name in var.secret_env_vars~}
+        ${k}=$(get_secret "connectable-${secret_name}")
+        %{endfor~}
+        
+        # Run container with environment variables
+        exec docker run --rm --name connectable-api \
+          -p 8080:8080 \
+          ${local.env_flags_simple} \
+          %{for k, secret_name in var.secret_env_vars~}
+          -e ${k}="$${k}" \
+          %{endfor~}
+          ${var.container_image}
+    
+    # Systemd service file
     - path: /etc/systemd/system/connectable-api.service
       permissions: '0644'
       content: |
@@ -108,8 +160,8 @@ locals {
         Restart=always
         RestartSec=10
         Environment="DOCKER_CONFIG=/home/chronos/.docker"
-        ExecStartPre=/bin/bash -c 'mkdir -p /home/chronos/.docker && TOKEN=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | grep -o "access_token\":\"[^\"]*" | cut -d\" -f3) && echo $TOKEN | docker login -u oauth2accesstoken --password-stdin asia-northeast3-docker.pkg.dev && docker pull ${var.container_image}'
-        ExecStart=/bin/bash -c '/usr/bin/docker run --rm --name connectable-api -p 8080:8080 ${local.env_flags} ${var.container_image}'
+        ExecStartPre=/bin/bash /var/lib/pull-image.sh
+        ExecStart=/bin/bash /var/lib/start-connectable.sh
         ExecStop=/usr/bin/docker stop connectable-api
         
         [Install]
