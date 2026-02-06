@@ -1,6 +1,7 @@
 package gdgoc.onewave.connectable.domain.submission.controller;
 
 import gdgoc.onewave.connectable.domain.submission.dto.SubmissionResponse;
+import gdgoc.onewave.connectable.domain.submission.service.SubmissionService;
 import gdgoc.onewave.connectable.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,6 +21,8 @@ import java.util.UUID;
 @RequestMapping("/api/assignments")
 @RequiredArgsConstructor
 public class SubmissionController {
+
+    private final SubmissionService submissionService;
 
     @Operation(
         summary = "Submit and Grade",
@@ -62,6 +65,6 @@ public class SubmissionController {
             @Parameter(description = "Client-generated user UUID (stored in localStorage)") @RequestPart("userId") String userId,
             @Parameter(description = "Zip file to submit (max 50MB)") @RequestPart("file") MultipartFile file
     ) {
-        return ApiResponse.success(null);
+        return ApiResponse.success(submissionService.submit(id, userId, file));
     }
 }

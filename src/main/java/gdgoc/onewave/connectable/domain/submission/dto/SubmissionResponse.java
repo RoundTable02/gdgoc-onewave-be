@@ -1,7 +1,7 @@
 package gdgoc.onewave.connectable.domain.submission.dto;
 
 import gdgoc.onewave.connectable.domain.grading.dto.GradingResultResponse;
-import gdgoc.onewave.connectable.domain.submission.entity.SubmissionStatus;
+import gdgoc.onewave.connectable.domain.entity.SubmissionStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
