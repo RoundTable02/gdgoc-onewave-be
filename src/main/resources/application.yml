@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: connectable
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  
+  h2:
+    console:
+      enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+# Swagger configuration
+springdoc:
+  swagger-ui:
+    path: /swagger-ui/index.html
+    groups-order: ASC
+    operations-sorter: alpha
+    disable-swagger-default-url: true
+    display-request-duration: true
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    gdgoc.onewave.connectable: DEBUG
