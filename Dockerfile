@@ -1,20 +1,5 @@
 # Spring Boot Application Dockerfile
-# Multi-stage build for optimized production image
-
-# -----------------------------------------------------------------------------
-# Build stage
-# -----------------------------------------------------------------------------
-FROM eclipse-temurin:17-jdk-alpine AS builder
-
-WORKDIR /app
-
-# Copy gradle files for dependency caching
-COPY gradle/ gradle/
-COPY gradlew build.gradle settings.gradle ./
-COPY src/ src/
-
-# Build the application
-RUN ./gradlew bootJar --no-daemon
+# Uses pre-built JAR from Gradle build step
 
 # -----------------------------------------------------------------------------
 # Production stage
@@ -26,8 +11,9 @@ RUN addgroup -S spring && adduser -S spring -G spring
 
 WORKDIR /app
 
-# Copy the built JAR from builder stage
-COPY --from=builder /app/build/libs/*.jar app.jar
+# Copy the pre-built JAR (passed as build arg)
+ARG JAR_FILE
+COPY ${JAR_FILE} app.jar
 
 # Set ownership to non-root user
 RUN chown -R spring:spring /app
