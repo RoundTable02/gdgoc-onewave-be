@@ -1,6 +1,7 @@
 package gdgoc.onewave.connectable.domain.assignment.controller;
 
 import gdgoc.onewave.connectable.domain.assignment.dto.AssignmentCreateRequest;
+import gdgoc.onewave.connectable.domain.assignment.dto.AssignmentListDataResponse;
 import gdgoc.onewave.connectable.domain.assignment.dto.AssignmentListResponse;
 import gdgoc.onewave.connectable.domain.assignment.dto.AssignmentResponse;
 import gdgoc.onewave.connectable.global.response.ApiResponse;
@@ -56,15 +57,15 @@ public class AssignmentController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(
             responseCode = "200",
             description = "Assignments retrieved successfully",
-            content = @Content(schema = @Schema(implementation = AssignmentListResponse.class))
+            content = @Content(schema = @Schema(implementation = AssignmentListDataResponse.class))
         )
     })
     @GetMapping
-    public ApiResponse<List<AssignmentListResponse>> getAssignments(
+    public AssignmentListDataResponse getAssignments(
             @Parameter(description = "Page number (starts from 0)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "20") int size
     ) {
-        return ApiResponse.success(List.of());
+        return new AssignmentListDataResponse(List.of());
     }
 
     @Operation(summary = "Get Assignment Detail", description = "Gets details of a specific assignment.")
