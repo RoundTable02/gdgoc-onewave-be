@@ -87,3 +87,4 @@ terraform/*_override.tf.json
 terraform/.terraformrc
 terraform/terraform.rc
 
+src/main/resources/application-dev.yml

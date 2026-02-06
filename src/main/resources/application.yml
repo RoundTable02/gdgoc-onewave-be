@@ -1,25 +1,21 @@
 spring:
   application:
     name: connectable
-
-  datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
   
-  h2:
-    console:
-      enabled: true
-
+  datasource:
+    url: jdbc:postgresql://${SUPABASE_HOST}:6543/${SUPABASE_DB}
+    username: ${SUPABASE_USER}
+    password: ${SUPABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate
     properties:
       hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
+    show-sql: false
 
   servlet:
     multipart:
@@ -37,6 +33,28 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+
+# GCS 설정
+gcs:
+  bucket-name: ${GCS_BUCKET_NAME}
+  base-url: https://storage.googleapis.com
+
+# Gemini API 설정
+gemini:
+  api-key: ${GEMINI_API_KEY}
+  model: gemini-1.5-pro
+
+# Cloud Run 워커 설정
+worker:
+  url: ${WORKER_URL}
+  timeout-seconds: 60
+
+# 서버 설정
+server:
+  port: 8080
+
+# 로깅
 logging:
   level:
-    gdgoc.onewave.connectable: DEBUG
+    gdgoc.onewave.connectable: INFO
+    org.hibernate.SQL: WARN

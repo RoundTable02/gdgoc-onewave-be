@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+
+# Documentation
+*.md
+HELP.md
+REQUIREMENTS.md
+SPECIFICATION.md
+
+# IDE
+.idea
+.vscode
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings
+.factorypath
+
+# Build artifacts (local)
+build/
+!build/libs/*.jar
+bin/
+out/
+
+# Gradle
+.gradle
+gradlew.bat
+gradle/wrapper/gradle-wrapper.jar
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test reports
+build/reports/
+build/test-results/
+
+# Terraform
+terraform/
+terraform.tfstate*
+.terraform/
+*.tfvars
+
+# Local environment
+.env
+.env.local
+.env.*.local
