@@ -128,3 +128,10 @@ jobs:
           docker push ${{ steps.meta.outputs.tags }}
           DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ${{ steps.meta.outputs.tags }} | cut -d'@' -f2)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Compute Engine
+        if: github.ref_name == 'main'
+        run: |
+          gcloud compute ssh ${{ env.SERVICE_NAME }} \
+            --zone=${{ env.GCP_ZONE }} \
+            --command="sudo systemctl restart connectable-api"
