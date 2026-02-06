@@ -6,6 +6,8 @@ import gdgoc.onewave.connectable.domain.submission.dto.SubmissionResponse;
 import gdgoc.onewave.connectable.global.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +23,42 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AssignmentController {
 
-    @Operation(summary = "Create Assignment", description = "Creates a new assignment and generates grading script via AI.")
+    @Operation(
+        summary = "Create Assignment",
+        description = "Creates a new assignment and generates grading script via AI."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "201",
+            description = "Assignment created successfully",
+            content = @Content(schema = @Schema(implementation = AssignmentResponse.class))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400",
+            description = "Invalid request - validation failed",
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "500",
+            description = "AI script generation failed",
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))
+        )
+    })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ApiResponse<AssignmentResponse> createAssignment(@Valid @RequestBody AssignmentCreateRequest request) {
+    public ApiResponse<AssignmentResponse> createAssignment(
+            @Valid @RequestBody AssignmentCreateRequest request) {
         return ApiResponse.success(null);
     }
 
     @Operation(summary = "Get Assignments", description = "Lists created assignments.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Assignments retrieved successfully",
+            content = @Content(schema = @Schema(implementation = AssignmentResponse.class))
+        )
+    })
     @GetMapping
     public ApiResponse<List<AssignmentResponse>> getAssignments(
             @Parameter(description = "Page number (starts from 0)") @RequestParam(defaultValue = "0") int page,
@@ -38,14 +68,40 @@ public class AssignmentController {
     }
 
     @Operation(summary = "Get Assignment Detail", description = "Gets details of a specific assignment.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Assignment found",
+            content = @Content(schema = @Schema(implementation = AssignmentResponse.class))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Assignment not found",
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))
+        )
+    })
     @GetMapping("/{id}")
-    public ApiResponse<AssignmentResponse> getAssignment(@PathVariable UUID id) {
+    public ApiResponse<AssignmentResponse> getAssignment(
+            @Parameter(description = "Assignment ID", required = true) @PathVariable UUID id) {
         return ApiResponse.success(null);
     }
 
     @Operation(summary = "Get Assignment Results", description = "Gets all submission results for a specific assignment.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponses({
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Results retrieved successfully",
+            content = @Content(schema = @Schema(implementation = SubmissionResponse.class))
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "404",
+            description = "Assignment not found",
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))
+        )
+    })
     @GetMapping("/{id}/results")
-    public ApiResponse<List<SubmissionResponse>> getAssignmentResults(@PathVariable UUID id) {
+    public ApiResponse<List<SubmissionResponse>> getAssignmentResults(
+            @Parameter(description = "Assignment ID", required = true) @PathVariable UUID id) {
         return ApiResponse.success(List.of());
     }
 }

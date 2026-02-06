@@ -115,6 +115,7 @@ dependencies {
 │     Assignment      │
 ├─────────────────────┤
 │ id (PK, UUID)       │
+│ user_id (FK, UUID)  │  <-- 클라이언트에서 생성한 사용자 UUID
 │ title (VARCHAR)     │
 │ content (TEXT)      │
 │ sub_tasks (JSONB)   │
@@ -129,6 +130,7 @@ dependencies {
 │     Submission      │
 ├─────────────────────┤
 │ id (PK, UUID)       │
+│ user_id (FK, UUID)  │  <-- 클라이언트에서 생성한 사용자 UUID
 │ assignment_id (FK)  │
 │ candidate_name      │
 │ file_url (TEXT)     │
@@ -151,11 +153,17 @@ dependencies {
 └─────────────────────┘
 ```
 
+**사용자 식별 방식:**
+- 클라이언트에서 사용자가 처음 접속하면 UUID를 생성하여 localStorage에 저장
+- 이후 모든 요청에 `X-User-Id` 헤더로 해당 UUID를 전송
+- 서버는 이 UUID를 `user_id` 컬럼에 저장하여 사용자별 데이터 구분
+
 ### 3.2 DDL (PostgreSQL/Supabase)
 ```sql
 -- Assignment 테이블
 CREATE TABLE assignment (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,  -- 클라이언트에서 생성한 사용자 UUID
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
     sub_tasks JSONB NOT NULL DEFAULT '[]',
@@ -164,11 +172,14 @@ CREATE TABLE assignment (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE INDEX idx_assignment_user ON assignment(user_id);
+
 -- Submission 테이블
 CREATE TYPE submission_status AS ENUM ('COMPLETED', 'FAILED');
 
 CREATE TABLE submission (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,  -- 클라이언트에서 생성한 사용자 UUID
     assignment_id UUID NOT NULL REFERENCES assignment(id) ON DELETE CASCADE,
     candidate_name VARCHAR(100) NOT NULL,
     file_url TEXT NOT NULL,
@@ -177,6 +188,7 @@ CREATE TABLE submission (
 );
 
 CREATE INDEX idx_submission_assignment ON submission(assignment_id);
+CREATE INDEX idx_submission_user ON submission(user_id);
 
 -- GradingResult 테이블
 CREATE TABLE grading_result (
@@ -292,6 +304,9 @@ public class Assignment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;  // 클라이언트에서 생성한 사용자 UUID
+
     @Column(nullable = false)
     private String title;
 
@@ -350,6 +365,9 @@ public class Submission {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;  // 클라이언트에서 생성한 사용자 UUID
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "assignment_id", nullable = false)
@@ -443,6 +461,8 @@ Request:
   Method: POST
   Path: /api/assignments
   Content-Type: application/json
+  Headers:
+    X-User-Id: string (required)  # 클라이언트에서 생성한 사용자 UUID
   Body:
     title: string (required, max 255)
     content: string (required)
@@ -549,6 +569,8 @@ Request:
   Method: POST
   Path: /api/assignments/{id}/submissions
   Content-Type: multipart/form-data
+  Headers:
+    X-User-Id: string (required)  # 클라이언트에서 생성한 사용자 UUID
   Body:
     file: MultipartFile (required, .zip only, max 50MB)
     candidateName: string (required, max 100)
@@ -594,6 +616,50 @@ Response:
 **타임아웃 고려사항:**
 - Cloud Run 워커 호출 타임아웃: 60초
 - 전체 API 응답 타임아웃: 90초 (여유 확보)
+
+---
+
+## 6.3 사용자 식별 메커니즘
+
+### 6.3.1 개요
+본 시스템은 별도의 로그인 과정 없이 클라이언트에서 생성한 UUID를 통해 사용자를 식별합니다.
+
+### 6.3.2 클라이언트 동작
+1. **최초 접속 시:** 클라이언트는 `crypto.randomUUID()` 등으로 UUID를 생성
+2. **저장:** 생성된 UUID는 `localStorage.setItem('userId', uuid)`로 저장
+3. **요청 시:** 모든 API 요청에 `X-User-Id` 헤더로 UUID를 포함
+
+```javascript
+// 클라이언트 예시 (React)
+const userId = localStorage.getItem('userId') || crypto.randomUUID();
+localStorage.setItem('userId', userId);
+
+fetch('/api/assignments', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-User-Id': userId  // 사용자 UUID 전송
+  },
+  body: JSON.stringify(data)
+});
+```
+
+### 6.3.3 서버 동작
+- 모든 요청에서 `X-User-Id` 헤더를 추출
+- Assignment/Submission 저장 시 `user_id` 컬럼에 해당 값 저장
+- 사용자별 데이터 조회 시 `user_id`로 필터링
+
+```java
+// 서버에서 X-User-Id 헤더 추출 예시
+@PostMapping
+public ApiResponse<AssignmentResponse> createAssignment(
+    @RequestHeader("X-User-Id") UUID userId,
+    @Valid @RequestBody AssignmentCreateRequest request
+) {
+    // userId를 함께 저장
+    return ApiResponse.success(assignmentService.create(userId, request));
+}
+```
 
 ---
 
