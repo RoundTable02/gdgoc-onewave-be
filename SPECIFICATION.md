@@ -132,7 +132,6 @@ dependencies {
 │ id (PK, UUID)       │
 │ user_id (FK, UUID)  │  <-- 클라이언트에서 생성한 사용자 UUID
 │ assignment_id (FK)  │
-│ candidate_name      │
 │ file_url (TEXT)     │
 │ status (ENUM)       │
 │ created_at          │
@@ -148,7 +147,6 @@ dependencies {
 │ submission_id (FK)  │
 │ task_name (VARCHAR) │
 │ is_passed (BOOLEAN) │
-│ feedback (TEXT)     │
 │ created_at          │
 └─────────────────────┘
 ```
@@ -181,7 +179,6 @@ CREATE TABLE submission (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL,  -- 클라이언트에서 생성한 사용자 UUID
     assignment_id UUID NOT NULL REFERENCES assignment(id) ON DELETE CASCADE,
-    candidate_name VARCHAR(100) NOT NULL,
     file_url TEXT NOT NULL,
     status submission_status NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -196,7 +193,6 @@ CREATE TABLE grading_result (
     submission_id UUID NOT NULL REFERENCES submission(id) ON DELETE CASCADE,
     task_name VARCHAR(255) NOT NULL,
     is_passed BOOLEAN NOT NULL,
-    feedback TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -239,7 +235,7 @@ src/main/java/gdgoc/onewave/connectable/
 │   │   └── dto/
 │   │       ├── AssignmentCreateRequest.java
 │   │       ├── AssignmentResponse.java
-│   │       └── AssignmentResultResponse.java
+│   │       └── AssignmentListResponse.java
 │   ├── submission/
 │   │   ├── controller/
 │   │   │   └── SubmissionController.java
@@ -373,9 +369,6 @@ public class Submission {
     @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
 
-    @Column(name = "candidate_name", nullable = false, length = 100)
-    private String candidateName;
-
     @Column(name = "file_url", nullable = false, columnDefinition = "TEXT")
     private String fileUrl;
 
@@ -435,9 +428,6 @@ public class GradingResult {
 
     @Column(name = "is_passed", nullable = false)
     private Boolean isPassed;
-
-    @Column(columnDefinition = "TEXT")
-    private String feedback;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -507,7 +497,6 @@ Response:
       - id: UUID
         title: string
         content: string (truncated to 200 chars)
-        subTaskCount: integer
         createdAt: datetime
     page: integer
     size: integer
@@ -528,35 +517,10 @@ Response:
     content: string
     subTasks: string[]
     createdAt: datetime
-    # aiScript는 구직자에게 노출하지 않음
 
   404 Not Found:
     code: "ASSIGNMENT_NOT_FOUND"
     message: "Assignment not found"
-```
-
-#### 6.1.4 채점 결과 조회 (GET /api/assignments/{id}/results)
-```yaml
-Request:
-  Method: GET
-  Path: /api/assignments/{id}/results
-
-Response:
-  200 OK:
-    assignmentId: UUID
-    assignmentTitle: string
-    submissions:
-      - id: UUID
-        candidateName: string
-        fileUrl: string  # 배포된 정적 호스팅 URL
-        status: PENDING | GRADING | COMPLETED | FAILED
-        createdAt: datetime
-        gradingResults:
-          - taskName: string
-            isPassed: boolean
-            feedback: string
-        passedCount: integer
-        totalCount: integer
 ```
 
 ---
@@ -573,18 +537,15 @@ Request:
     X-User-Id: string (required)  # 클라이언트에서 생성한 사용자 UUID
   Body:
     file: MultipartFile (required, .zip only, max 50MB)
-    candidateName: string (required, max 100)
 
 Response:
   200 OK:  # 동기식 - 채점 완료 후 즉시 반환
     id: UUID
-    candidateName: string
     fileUrl: string
     status: "COMPLETED" | "FAILED"
     gradingResults:
       - taskName: string
         isPassed: boolean
-        feedback: string
     summary:
       passedCount: integer
       totalCount: integer
@@ -975,8 +936,7 @@ public class GradingWorkerClient {
 
     public record GradingResultItem(
         String taskName,
-        boolean isPassed,
-        String feedback
+        boolean isPassed
     ) {}
 }
 ```
@@ -1161,10 +1121,9 @@ public record AssignmentCreateRequest(
 ### 9.2 Response DTOs
 
 ```java
-// AssignmentResponse.java
+// AssignmentResponse.java (상세 조회용)
 package gdgoc.onewave.connectable.domain.assignment.dto;
 
-import gdgoc.onewave.connectable.domain.assignment.entity.Assignment;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -1174,38 +1133,26 @@ public record AssignmentResponse(
     String title,
     String content,
     List<String> subTasks,
-    String aiScript,
     LocalDateTime createdAt
-) {
-    public static AssignmentResponse from(Assignment assignment) {
-        return new AssignmentResponse(
-            assignment.getId(),
-            assignment.getTitle(),
-            assignment.getContent(),
-            assignment.getSubTasks(),
-            assignment.getAiScript(),
-            assignment.getCreatedAt()
-        );
-    }
-    
-    // 구직자용 (aiScript 제외)
-    public static AssignmentResponse forCandidate(Assignment assignment) {
-        return new AssignmentResponse(
-            assignment.getId(),
-            assignment.getTitle(),
-            assignment.getContent(),
-            assignment.getSubTasks(),
-            null, // AI Script 비공개
-            assignment.getCreatedAt()
-        );
-    }
-}
+) {}
+
+// AssignmentListResponse.java (목록 조회용)
+package gdgoc.onewave.connectable.domain.assignment.dto;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+public record AssignmentListResponse(
+    UUID id,
+    String title,
+    String content,  // truncated to 200 chars
+    LocalDateTime createdAt
+) {}
 
 // SubmissionResponse.java (채점 결과 포함)
 package gdgoc.onewave.connectable.domain.submission.dto;
 
 import gdgoc.onewave.connectable.domain.grading.dto.GradingResultResponse;
-import gdgoc.onewave.connectable.domain.submission.entity.Submission;
 import gdgoc.onewave.connectable.domain.submission.entity.SubmissionStatus;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -1213,7 +1160,6 @@ import java.util.UUID;
 
 public record SubmissionResponse(
     UUID id,
-    String candidateName,
     String fileUrl,
     SubmissionStatus status,
     List<GradingResultResponse> gradingResults,
@@ -1224,61 +1170,16 @@ public record SubmissionResponse(
         int passedCount,
         int totalCount,
         String passRate
-    ) {
-        public static GradingSummary from(List<GradingResultResponse> results) {
-            int passed = (int) results.stream().filter(GradingResultResponse::isPassed).count();
-            int total = results.size();
-            String rate = total > 0 ? String.format("%.0f%%", (passed * 100.0) / total) : "0%";
-            return new GradingSummary(passed, total, rate);
-        }
-    }
-
-    public static SubmissionResponse from(Submission submission, List<GradingResultResponse> gradingResults) {
-        return new SubmissionResponse(
-            submission.getId(),
-            submission.getCandidateName(),
-            submission.getFileUrl(),
-            submission.getStatus(),
-            gradingResults,
-            GradingSummary.from(gradingResults),
-            submission.getCreatedAt()
-        );
-    }
+    ) {}
 }
 
 // GradingResultResponse.java
 package gdgoc.onewave.connectable.domain.grading.dto;
 
-import gdgoc.onewave.connectable.domain.grading.entity.GradingResult;
-import java.util.UUID;
-
 public record GradingResultResponse(
-    UUID id,
     String taskName,
-    Boolean isPassed,
-    String feedback
-) {
-    public static GradingResultResponse from(GradingResult result) {
-        return new GradingResultResponse(
-            result.getId(),
-            result.getTaskName(),
-            result.getIsPassed(),
-            result.getFeedback()
-        );
-    }
-
-    // Worker 응답에서 변환 (DB 저장 전)
-    public static GradingResultResponse fromWorkerResult(
-        gdgoc.onewave.connectable.infrastructure.worker.GradingWorkerClient.GradingResultItem item
-    ) {
-        return new GradingResultResponse(
-            null,  // DB 저장 전이므로 ID 없음
-            item.taskName(),
-            item.isPassed(),
-            item.feedback()
-        );
-    }
-}
+    Boolean isPassed
+) {}
 ```
 
 ---
@@ -1506,7 +1407,6 @@ gsutil cors set cors.json gs://connectable-submissions
     {
       taskName: string;      // 테스트 케이스 이름
       isPassed: boolean;     // 통과 여부
-      feedback: string;      // 상세 피드백 (실패 사유 등)
     }
   ];
   errorMessage?: string;     // success=false일 때 에러 메시지

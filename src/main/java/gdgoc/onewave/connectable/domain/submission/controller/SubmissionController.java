@@ -60,8 +60,7 @@ public class SubmissionController {
     public ApiResponse<SubmissionResponse> submitAssignment(
             @PathVariable UUID id,
             @Parameter(description = "Client-generated user UUID (stored in localStorage)") @RequestPart("userId") String userId,
-            @Parameter(description = "Zip file to submit (max 50MB)") @RequestPart("file") MultipartFile file,
-            @Parameter(description = "Candidate Name") @RequestPart("candidateName") String candidateName
+            @Parameter(description = "Zip file to submit (max 50MB)") @RequestPart("file") MultipartFile file
     ) {
         return ApiResponse.success(null);
     }

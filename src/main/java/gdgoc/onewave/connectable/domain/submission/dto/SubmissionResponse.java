@@ -11,8 +11,6 @@ import java.util.UUID;
 public record SubmissionResponse(
     @Schema(description = "Submission ID")
     UUID id,
-    @Schema(description = "Candidate Name")
-    String candidateName,
     @Schema(description = "Static hosting URL")
     String fileUrl,
     @Schema(description = "Grading status")

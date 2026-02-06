@@ -28,9 +28,6 @@ public class GradingResult {
     @Column(name = "is_passed", nullable = false)
     private Boolean isPassed;
 
-    @Column(columnDefinition = "TEXT")
-    private String feedback;
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

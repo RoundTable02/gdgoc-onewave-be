@@ -25,9 +25,6 @@ public class Submission {
     @JoinColumn(name = "assignment_id", nullable = false)
     private Assignment assignment;
 
-    @Column(name = "candidate_name", nullable = false, length = 100)
-    private String candidateName;
-
     @Column(name = "file_url", nullable = false, columnDefinition = "TEXT")
     private String fileUrl;
 
